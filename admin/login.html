@@ -6,7 +6,11 @@
 
   <title>Login Admin — Requirement Gathering</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase JS -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    defer>
+  </script>
 
   <style>
     * {
@@ -31,7 +35,7 @@
     }
 
     .card {
-      background: white;
+      background: #ffffff;
       border-radius: 24px;
       padding: 32px 26px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.10);
@@ -76,6 +80,7 @@
       border-radius: 12px;
       font-size: 16px;
       outline: none;
+      background: #fff;
     }
 
     input:focus {
@@ -96,8 +101,13 @@
       cursor: pointer;
     }
 
+    button:active {
+      transform: scale(0.99);
+    }
+
     button:disabled {
       opacity: 0.6;
+      cursor: not-allowed;
     }
 
     .error {
@@ -112,6 +122,18 @@
       line-height: 1.5;
     }
 
+    .success {
+      display: none;
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #ecfdf3;
+      border: 1px solid #abefc6;
+      color: #067647;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
     .back {
       display: block;
       text-align: center;
@@ -119,6 +141,18 @@
       color: #2563eb;
       text-decoration: none;
       font-size: 14px;
+    }
+
+    .back:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      text-align: center;
+      color: #667085;
+      font-size: 14px;
+      margin-top: 12px;
+      display: none;
     }
   </style>
 </head>
@@ -164,15 +198,34 @@
           required
         >
 
-        <button id="loginButton" type="submit">
+        <button
+          id="loginButton"
+          type="submit"
+        >
           Masuk ke Dashboard
         </button>
 
-        <div id="errorMessage" class="error"></div>
+        <div
+          id="loadingMessage"
+          class="loading">
+          Menghubungkan ke server...
+        </div>
+
+        <div
+          id="errorMessage"
+          class="error">
+        </div>
+
+        <div
+          id="successMessage"
+          class="success">
+        </div>
 
       </form>
 
-      <a class="back" href="../index.html">
+      <a
+        class="back"
+        href="../index.html">
         ← Kembali ke Form Client
       </a>
 
@@ -182,12 +235,66 @@
 
 
 <script>
+/* =====================================================
+   TUNGGU SAMPAI SUPABASE JS SELESAI DIMUAT
+===================================================== */
 
-  /*
-   * ==============================
-   * SUPABASE CONFIGURATION
-   * ==============================
-   */
+window.addEventListener("load", function () {
+
+  initializeLogin();
+
+});
+
+
+/* =====================================================
+   INISIALISASI LOGIN
+===================================================== */
+
+async function initializeLogin() {
+
+  const form =
+    document.getElementById("loginForm");
+
+  const emailInput =
+    document.getElementById("email");
+
+  const passwordInput =
+    document.getElementById("password");
+
+  const loginButton =
+    document.getElementById("loginButton");
+
+  const errorMessage =
+    document.getElementById("errorMessage");
+
+  const successMessage =
+    document.getElementById("successMessage");
+
+  const loadingMessage =
+    document.getElementById("loadingMessage");
+
+
+  /* -----------------------------------------------
+     CEK SUPABASE LIBRARY
+  ------------------------------------------------ */
+
+  if (
+    typeof window.supabase === "undefined"
+  ) {
+
+    showError(
+      "Supabase gagal dimuat. Periksa koneksi internet lalu refresh halaman."
+    );
+
+    loginButton.disabled = true;
+
+    return;
+  }
+
+
+  /* =================================================
+     KONFIGURASI SUPABASE
+  ================================================= */
 
   const SUPABASE_URL =
     "https://jpfdvlmozjxkxjbbywna.supabase.co";
@@ -196,128 +303,340 @@
     "sb_publishable_TGzOotbx7mFQBje2Bgf2Yw_oLODlvne";
 
 
-  const supabaseClient =
-    window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY
+  let supabaseClient;
+
+
+  try {
+
+    supabaseClient =
+      window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
+
+  } catch (error) {
+
+    console.error(
+      "Supabase initialization error:",
+      error
     );
 
+    showError(
+      "Gagal menghubungkan ke Supabase."
+    );
 
-  /*
-   * ==============================
-   * CEK SESSION
-   * ==============================
-   */
+    loginButton.disabled = true;
 
-  async function checkSession() {
+    return;
+  }
+
+
+  /* =================================================
+     CEK SESSION YANG SUDAH ADA
+  ================================================= */
+
+  try {
 
     const {
-      data: { session }
-    } = await supabaseClient.auth.getSession();
+      data,
+      error
+    } =
+      await supabaseClient.auth.getSession();
 
-    if (session) {
+
+    if (error) {
+
+      console.error(
+        "Session error:",
+        error
+      );
+
+    }
+
+
+    if (
+      data &&
+      data.session
+    ) {
 
       window.location.href =
         "dashboard.html";
 
+      return;
     }
+
+  } catch (error) {
+
+    console.error(
+      "Session check error:",
+      error
+    );
 
   }
 
 
-  checkSession();
+  /* =================================================
+     FORM LOGIN
+  ================================================= */
 
-
-  /*
-   * ==============================
-   * LOGIN
-   * ==============================
-   */
-
-  document
-    .getElementById("loginForm")
-    .addEventListener("submit", async function(event) {
+  form.addEventListener(
+    "submit",
+    async function (event) {
 
       event.preventDefault();
 
+
+      hideMessages();
+
+
       const email =
-        document.getElementById("email").value.trim();
+        emailInput.value.trim();
 
       const password =
-        document.getElementById("password").value;
-
-      const button =
-        document.getElementById("loginButton");
-
-      const errorBox =
-        document.getElementById("errorMessage");
+        passwordInput.value;
 
 
-      errorBox.style.display = "none";
+      /* -----------------------------------------------
+         VALIDASI
+      ------------------------------------------------ */
 
-      button.disabled = true;
+      if (!email) {
 
-      button.textContent = "Memeriksa...";
+        showError(
+          "Email wajib diisi."
+        );
+
+        return;
+      }
+
+
+      if (!password) {
+
+        showError(
+          "Password wajib diisi."
+        );
+
+        return;
+      }
+
+
+      /* -----------------------------------------------
+         LOADING
+      ------------------------------------------------ */
+
+      loginButton.disabled = true;
+
+      loginButton.textContent =
+        "Memeriksa...";
+
+      loadingMessage.style.display =
+        "block";
 
 
       try {
 
+        /* ============================================
+           LOGIN SUPABASE
+        ============================================ */
+
         const {
           data,
           error
-        } = await supabaseClient.auth.signInWithPassword({
+        } =
+          await supabaseClient.auth
+            .signInWithPassword({
 
-          email: email,
+              email: email,
 
-          password: password
+              password: password
 
-        });
+            });
 
+
+        /* ============================================
+           CEK ERROR
+        ============================================ */
 
         if (error) {
 
-          throw error;
+          console.error(
+            "Supabase login error:",
+            error
+          );
 
+          throw error;
         }
 
 
-        if (!data.session) {
+        /* ============================================
+           CEK SESSION
+        ============================================ */
+
+        if (
+          !data ||
+          !data.session
+        ) {
 
           throw new Error(
-            "Login gagal. Session tidak ditemukan."
+            "Login berhasil tetapi session tidak ditemukan."
           );
 
         }
 
 
-        /*
-         * LOGIN BERHASIL
-         */
+        /* ============================================
+           LOGIN BERHASIL
+        ============================================ */
 
-        window.location.href =
-          "dashboard.html";
+        successMessage.textContent =
+          "Login berhasil. Membuka dashboard...";
+
+        successMessage.style.display =
+          "block";
+
+        loadingMessage.style.display =
+          "none";
+
+        loginButton.textContent =
+          "Berhasil";
+
+
+        /* ============================================
+           TUNGGU SEBENTAR LALU REDIRECT
+        ============================================ */
+
+        setTimeout(function () {
+
+          window.location.href =
+            "dashboard.html";
+
+        }, 500);
 
 
       } catch (error) {
 
-        console.error(error);
+        console.error(
+          "LOGIN ERROR:",
+          error
+        );
 
 
-        errorBox.textContent =
-          "Login gagal: " + error.message;
-
-        errorBox.style.display = "block";
+        loadingMessage.style.display =
+          "none";
 
 
-        button.disabled = false;
+        let message =
+          "Login gagal.";
 
-        button.textContent =
+
+        /* ---------------------------------------------
+           PESAN ERROR SUPABASE
+        --------------------------------------------- */
+
+        if (error) {
+
+          if (
+            error.message
+          ) {
+
+            message =
+              error.message;
+
+          }
+
+        }
+
+
+        /* ---------------------------------------------
+           ERROR UMUM
+        --------------------------------------------- */
+
+        if (
+          message
+            .toLowerCase()
+            .includes("invalid login credentials")
+        ) {
+
+          message =
+            "Email atau password salah. Pastikan email tersebut sudah terdaftar di Supabase Authentication.";
+
+        }
+
+
+        if (
+          message
+            .toLowerCase()
+            .includes("email not confirmed")
+        ) {
+
+          message =
+            "Email belum dikonfirmasi. Silakan konfirmasi email akun Supabase terlebih dahulu.";
+
+        }
+
+
+        if (
+          message
+            .toLowerCase()
+            .includes("network")
+        ) {
+
+          message =
+            "Tidak dapat terhubung ke Supabase. Periksa koneksi internet.";
+
+        }
+
+
+        showError(
+          message
+        );
+
+
+        loginButton.disabled =
+          false;
+
+        loginButton.textContent =
           "Masuk ke Dashboard";
 
       }
 
-    });
+    }
+  );
 
+
+  /* =================================================
+     FUNGSI PESAN ERROR
+  ================================================= */
+
+  function showError(message) {
+
+    errorMessage.textContent =
+      message;
+
+    errorMessage.style.display =
+      "block";
+
+    successMessage.style.display =
+      "none";
+
+  }
+
+
+  /* =================================================
+     SEMBUNYIKAN PESAN
+  ================================================= */
+
+  function hideMessages() {
+
+    errorMessage.style.display =
+      "none";
+
+    successMessage.style.display =
+      "none";
+
+  }
+
+}
 </script>
 
 </body>
