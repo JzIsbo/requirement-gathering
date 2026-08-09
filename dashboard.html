@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Requirement Gathering</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box}
+    :root{--bg:#f6f7fb;--card:#fff;--text:#172033;--muted:#718096;--line:#e7eaf0;--primary:#4f46e5;--danger:#dc2626;--success:#16a34a;--warning:#d97706}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    button,input,select{font:inherit}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:250px;background:#111827;color:#fff;padding:22px 16px;position:fixed;inset:0 auto 0 0;z-index:10}
+    .brand{font-size:20px;font-weight:800;padding:10px 12px 25px}
+    .brand span{color:#818cf8}
+    .nav{display:grid;gap:7px}
+    .nav button{border:0;background:transparent;color:#cbd5e1;text-align:left;padding:12px;border-radius:10px;cursor:pointer}
+    .nav button:hover,.nav button.active{background:#242b3d;color:#fff}
+    .logout{position:absolute;left:16px;right:16px;bottom:20px;border:1px solid #374151;background:transparent;color:#e5e7eb;padding:11px;border-radius:10px;cursor:pointer}
+    .main{margin-left:250px;width:calc(100% - 250px);padding:28px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px}
+    h1{margin:0;font-size:28px}.subtitle{color:var(--muted);margin-top:5px}
+    .user{display:flex;align-items:center;gap:10px}.avatar{width:40px;height:40px;border-radius:50%;background:#e0e7ff;color:#4338ca;display:grid;place-items:center;font-weight:800}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:19px;box-shadow:0 3px 14px rgba(15,23,42,.04)}
+    .label{font-size:13px;color:var(--muted)}.value{font-size:30px;font-weight:800;margin-top:7px}
+    .grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}
+    .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    .card-head h2{font-size:17px;margin:0}
+    .btn{border:0;background:var(--primary);color:#fff;padding:9px 13px;border-radius:9px;cursor:pointer}
+    .btn.secondary{background:#eef2ff;color:#4338ca}
+    table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-weight:600}
+    .badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:700}.done{background:#dcfce7;color:#166534}.pending{background:#fef3c7;color:#92400e}.progress{background:#dbeafe;color:#1d4ed8}
+    .empty{text-align:center;color:var(--muted);padding:35px 10px}
+    .activity{display:grid;gap:14px}.activity-item{display:flex;gap:11px}.dot{width:9px;height:9px;border-radius:50%;background:#6366f1;margin-top:6px}.activity small{display:block;color:var(--muted);margin-top:3px}
+    .section{display:none}.section.active{display:block}
+    .toolbar{display:flex;gap:10px;margin-bottom:15px}.toolbar input,.toolbar select{border:1px solid var(--line);background:#fff;padding:10px;border-radius:9px;outline:none}
+    .toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:12px 16px;border-radius:10px;display:none;z-index:20}
+    @media(max-width:900px){.sidebar{width:210px}.main{margin-left:210px;width:calc(100% - 210px)}.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+    @media(max-width:600px){.sidebar{position:static;width:100%;height:auto}.app{display:block}.main{margin:0;width:100%;padding:18px}.logout{position:static;margin-top:18px;width:100%}.cards{grid-template-columns:1fr 1fr}.top{align-items:flex-start}.user{display:none}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">Requirement<span>Admin</span></div>
+    <div class="nav">
+      <button class="active" data-page="overview">📊 Overview</button>
+      <button data-page="requirements">📋 Requirements</button>
+      <button data-page="users">👥 Users</button>
+      <button data-page="settings">⚙️ Settings</button>
+    </div>
+    <button class="logout" id="logout">Keluar</button>
+  </aside>
+
+  <main class="main">
+    <section id="overview" class="section active">
+      <div class="top">
+        <div><h1>Dashboard</h1><div class="subtitle">Selamat datang di panel admin.</div></div>
+        <div class="user"><div><b id="userEmail">Admin</b><div class="subtitle">Administrator</div></div><div class="avatar" id="avatar">A</div></div>
+      </div>
+      <div class="cards">
+        <div class="card"><div class="label">Total Requirement</div><div class="value" id="totalReq">0</div></div>
+        <div class="card"><div class="label">Selesai</div><div class="value" id="doneReq">0</div></div>
+        <div class="card"><div class="label">Dalam Proses</div><div class="value" id="progressReq">0</div></div>
+        <div class="card"><div class="label">User</div><div class="value" id="totalUsers">0</div></div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-head"><h2>Requirement Terbaru</h2><button class="btn secondary" onclick="showPage('requirements')">Lihat semua</button></div>
+          <div id="recentTable"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Aktivitas</h2></div>
+          <div class="activity" id="activity"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="requirements" class="section">
+      <div class="top"><div><h1>Requirements</h1><div class="subtitle">Kelola semua requirement dari satu tempat.</div></div><button class="btn" onclick="loadData()">↻ Refresh</button></div>
+      <div class="card">
+        <div class="toolbar"><input id="search" placeholder="Cari requirement..." oninput="renderRequirements()"><select id="statusFilter" onchange="renderRequirements()"><option value="">Semua status</option><option>pending</option><option>progress</option><option>done</option></select></div>
+        <div id="requirementsTable"></div>
+      </div>
+    </section>
+
+    <section id="users" class="section">
+      <div class="top"><div><h1>Users</h1><div class="subtitle">Daftar user yang tersimpan di tabel profiles.</div></div></div>
+      <div class="card"><div id="usersTable"></div></div>
+    </section>
+
+    <section id="settings" class="section">
+      <div class="top"><div><h1>Settings</h1><div class="subtitle">Konfigurasi dashboard.</div></div></div>
+      <div class="card">
+        <h2>Konfigurasi Supabase</h2>
+        <p class="subtitle">Isi URL dan anon key di bagian CONFIG pada file ini. Jangan pernah memasukkan service_role key ke frontend.</p>
+        <p><b>Project URL:</b> <span id="configUrl">belum diisi</span></p>
+        <p><b>Status koneksi:</b> <span id="connectionStatus">memeriksa...</span></p>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================
+   CONFIG — GANTI 2 NILAI INI
+   ========================= */
+const CONFIG = {
+  SUPABASE_URL: "https://jpfdvlmozjxkxjbbywna.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_TGzOotbx7mFQBje2Bgf2Yw_oLODlvne"
+};
+
+let sb = null;
+let requirements = [];
+let users = [];
+
+function toast(msg){
+  const el=document.getElementById('toast'); el.textContent=msg; el.style.display='block';
+  setTimeout(()=>el.style.display='none',2500);
+}
+
+function showPage(page){
+  document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+  document.getElementById(page).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));
+  if(page==='requirements') renderRequirements();
+  if(page==='users') renderUsers();
+}
+
+document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>showPage(btn.dataset.page)));
+
+async function init(){
+  document.getElementById('configUrl').textContent =
+    CONFIG.SUPABASE_URL.includes('YOUR-PROJECT') ? 'belum diisi' : CONFIG.SUPABASE_URL;
+
+  if(window.supabase && !CONFIG.SUPABASE_URL.includes('YOUR-PROJECT')){
+    sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    document.getElementById('connectionStatus').textContent='Terhubung ke Supabase';
+    await checkAuth();
+    await loadData();
+  } else {
+    document.getElementById('connectionStatus').textContent='CONFIG belum diisi';
+    useDemoData();
+  }
+}
+
+async function checkAuth(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ location.href='index.html'; return; }
+  const email=session.user.email || 'Admin';
+  document.getElementById('userEmail').textContent=email;
+  document.getElementById('avatar').textContent=email[0].toUpperCase();
+}
+
+async function loadData(){
+  if(!sb){useDemoData();return}
+  try{
+    const req = await sb.from('requirements').select('*').order('created_at',{ascending:false});
+    if(req.error) throw req.error;
+    requirements=req.data||[];
+    const usr = await sb.from('profiles').select('*').limit(100);
+    users=usr.error ? [] : (usr.data||[]);
+    renderAll();
+  }catch(err){
+    console.error(err);
+    toast('Gagal membaca tabel Supabase: '+err.message);
+  }
+}
+
+function useDemoData(){
+  requirements=[
+    {id:1,title:'Contoh requirement',status:'pending',priority:'high',created_at:new Date().toISOString()},
+    {id:2,title:'Dashboard admin',status:'progress',priority:'medium',created_at:new Date(Date.now()-86400000).toISOString()},
+    {id:3,title:'Login admin',status:'done',priority:'low',created_at:new Date(Date.now()-172800000).toISOString()}
+  ];
+  users=[{id:1,email:'admin@example.com',role:'admin'}];
+  renderAll();
+}
+
+function renderAll(){
+  const done=requirements.filter(r=>String(r.status).toLowerCase()==='done').length;
+  const progress=requirements.filter(r=>['progress','in_progress','processing'].includes(String(r.status).toLowerCase())).length;
+  document.getElementById('totalReq').textContent=requirements.length;
+  document.getElementById('doneReq').textContent=done;
+  document.getElementById('progressReq').textContent=progress;
+  document.getElementById('totalUsers').textContent=users.length;
+  renderRecent(); renderRequirements(); renderUsers(); renderActivity();
+}
+
+function statusBadge(status){
+  const s=String(status||'pending').toLowerCase();
+  const cls=s==='done'?'done':(['progress','in_progress','processing'].includes(s)?'progress':'pending');
+  return `<span class="badge ${cls}">${s}</span>`;
+}
+
+function renderRecent(){
+  const rows=requirements.slice(0,6).map(r=>`<tr><td>${escapeHtml(r.title||'Tanpa judul')}</td><td>${statusBadge(r.status)}</td><td>${formatDate(r.created_at)}</td></tr>`).join('');
+  document.getElementById('recentTable').innerHTML=rows?`<table><thead><tr><th>Requirement</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada requirement.</div>';
+}
+
+function renderRequirements(){
+  const q=(document.getElementById('search')?.value||'').toLowerCase();
+  const sf=document.getElementById('statusFilter')?.value||'';
+  const data=requirements.filter(r=>(r.title||'').toLowerCase().includes(q)&&(!sf||String(r.status).toLowerCase()===sf));
+  const rows=data.map(r=>`<tr><td>${escapeHtml(r.title||'Tanpa judul')}</td><td>${statusBadge(r.status)}</td><td>${escapeHtml(r.priority||'-')}</td><td>${formatDate(r.created_at)}</td></tr>`).join('');
+  document.getElementById('requirementsTable').innerHTML=rows?`<table><thead><tr><th>Requirement</th><th>Status</th><th>Prioritas</th><th>Dibuat</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Tidak ada data.</div>';
+}
+
+function renderUsers(){
+  const rows=users.map(u=>`<tr><td>${escapeHtml(u.email||u.name||'-')}</td><td>${escapeHtml(u.role||'user')}</td><td>${formatDate(u.created_at)}</td></tr>`).join('');
+  document.getElementById('usersTable').innerHTML=rows?`<table><thead><tr><th>User</th><th>Role</th><th>Dibuat</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada data profiles.</div>';
+}
+
+function renderActivity(){
+  const data=requirements.slice(0,5);
+  document.getElementById('activity').innerHTML=data.length?data.map(r=>`<div class="activity-item"><span class="dot"></span><div><b>${escapeHtml(r.title||'Requirement')}</b><small>Status: ${escapeHtml(r.status||'pending')} · ${formatDate(r.created_at)}</small></div></div>`).join(''):'<div class="empty">Belum ada aktivitas.</div>';
+}
+
+function formatDate(v){if(!v)return'-';try{return new Date(v).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}catch{return'-'}}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+
+document.getElementById('logout').addEventListener('click',async()=>{
+  if(sb) await sb.auth.signOut();
+  location.href='index.html';
+});
+init();
+</script>
+</body>
+</html>
