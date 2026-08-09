@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Login — Requirement Gathering</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7fb;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#172033}
+.box{width:min(420px,calc(100% - 30px));background:#fff;border:1px solid #e1e5ec;border-radius:20px;padding:28px;box-shadow:0 15px 40px #10182812}
+.logo{font-size:23px;font-weight:800;margin-bottom:8px}.logo span{color:#4f46e5}
+p{color:#667085;line-height:1.5}.field{margin:17px 0}.field label{display:block;font-weight:700;margin-bottom:7px}input{width:100%;padding:13px;border:1px solid #d9dee8;border-radius:10px;font:inherit}button{width:100%;padding:13px;border:0;border-radius:10px;background:#4f46e5;color:white;font-weight:800;font-size:15px;cursor:pointer;margin-top:8px}button:disabled{opacity:.6}.error{display:none;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;padding:11px;border-radius:9px;margin-top:15px;font-size:14px}.loading{display:none;text-align:center;color:#667085;font-size:13px;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">Requirement<span>Admin</span></div>
+  <p>Masuk untuk mengelola requirement yang dikirim melalui form.</p>
+  <form id="login">
+    <div class="field"><label>Email</label><input id="email" type="email" autocomplete="username" required placeholder="admin@email.com"></div>
+    <div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password" required placeholder="••••••••"></div>
+    <button id="submit" type="submit">Masuk</button>
+    <div class="loading" id="loading">Memeriksa akun...</div>
+    <div class="error" id="error"></div>
+  </form>
+</div>
+<script>
+const SUPABASE_URL='https://jpfdvlmozjxkxjbbywna.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_TGzOotbx7mFQBje2Bgf2Yw_oLODlvne';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session) location.replace('dashboard.html');
+})();
+
+document.getElementById('login').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=document.getElementById('submit'), load=document.getElementById('loading'), err=document.getElementById('error');
+  err.style.display='none'; btn.disabled=true; load.style.display='block';
+  const {error}=await sb.auth.signInWithPassword({
+    email:document.getElementById('email').value.trim(),
+    password:document.getElementById('password').value
+  });
+  if(error){
+    err.textContent='Login gagal: '+error.message;
+    err.style.display='block'; btn.disabled=false; load.style.display='none'; return;
+  }
+  location.replace('dashboard.html');
+});
+</script>
+</body>
+</html>
